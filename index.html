@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Impossible Dota Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0604;
+    --bg-mid: #1a0e08;
+    --bg-tile: #2a160c;
+    --ember: #c8341a;
+    --ember-bright: #ff5a2c;
+    --gold: #d4a544;
+    --gold-bright: #f5c863;
+    --bone: #e8dcc4;
+    --shadow: rgba(0,0,0,0.7);
+    --blood: #6b0e0e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--bone);
+    background: var(--bg-deep);
+    cursor: default;
+  }
+
+  /* Atmospheric background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(200, 52, 26, 0.18), transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(107, 14, 14, 0.25), transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(212, 165, 68, 0.05), transparent 70%),
+      linear-gradient(180deg, #0a0604 0%, #1a0e08 50%, #0a0604 100%);
+    z-index: -2;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 1px, transparent 3px);
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* Floating embers */
+  .ember-particle {
+    position: fixed;
+    width: 3px; height: 3px;
+    background: var(--ember-bright);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--ember-bright), 0 0 16px var(--ember);
+    pointer-events: none;
+    animation: rise linear infinite;
+    z-index: 0;
+    opacity: 0;
+  }
+
+  @keyframes rise {
+    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 0.8; }
+    90% { opacity: 0.6; }
+    100% { transform: translateY(-10vh) translateX(var(--drift, 50px)); opacity: 0; }
+  }
+
+  #app {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+
+  /* === SCREENS === */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 2rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .screen.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* === TITLE SCREEN === */
+  #title-screen {
+    text-align: center;
+  }
+
+  .title-mark {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    font-size: clamp(3rem, 9vw, 7rem);
+    letter-spacing: 0.05em;
+    line-height: 0.95;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 40%, var(--ember) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 20px rgba(200, 52, 26, 0.4));
+    margin-bottom: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .title-mark .quiz-word {
+    display: block;
+    font-size: 0.5em;
+    letter-spacing: 0.4em;
+    color: var(--bone);
+    -webkit-text-fill-color: var(--bone);
+    background: none;
+    margin-top: 0.5em;
+    opacity: 0.8;
+  }
+
+  .title-flourish {
+    width: 60%;
+    max-width: 400px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 1.5rem 0;
+    position: relative;
+  }
+  .title-flourish::before {
+    content: '◆';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--gold-bright);
+    background: var(--bg-deep);
+    padding: 0 1rem;
+    font-size: 0.8rem;
+  }
+
+  .title-tagline {
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--bone);
+    opacity: 0.7;
+    max-width: 500px;
+    margin-bottom: 2rem;
+    letter-spacing: 0.02em;
+  }
+
+  .btn {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 1rem;
+    padding: 1rem 2.5rem;
+    background: linear-gradient(180deg, var(--bg-tile), var(--bg-mid));
+    color: var(--gold-bright);
+    border: 1px solid var(--gold);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  }
+  .btn:hover {
+    background: linear-gradient(180deg, var(--bg-tile), #3a1f10);
+    color: var(--bone);
+    box-shadow: 0 0 20px rgba(212, 165, 68, 0.4), inset 0 0 20px rgba(200, 52, 26, 0.2);
+    transform: translateY(-2px);
+  }
+  .btn:active { transform: translateY(0); }
+
+  .btn-large {
+    font-size: 1.3rem;
+    padding: 1.2rem 3rem;
+  }
+
+  .title-hint {
+    margin-top: 2rem;
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--ember-bright);
+    opacity: 0.7;
+    letter-spacing: 0.1em;
+  }
+
+  /* === GAME SCREEN === */
+  #game-screen {
+    padding: 1.5rem;
+    justify-content: flex-start;
+  }
+
+  .hud {
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.5rem;
+    background: linear-gradient(180deg, rgba(26, 14, 8, 0.95), rgba(10, 6, 4, 0.95));
+    border-top: 1px solid var(--gold);
+    border-bottom: 1px solid var(--gold);
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px var(--shadow);
+  }
+
+  .hud-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .hud-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: 0.7;
+  }
+
+  .hud-value {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--bone);
+  }
+
+  .lives {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .heart {
+    font-size: 1.4rem;
+    color: var(--ember-bright);
+    filter: drop-shadow(0 0 4px var(--ember));
+    transition: all 0.3s;
+  }
+  .heart.lost {
+    color: var(--bg-tile);
+    filter: none;
+    transform: scale(0.8);
+  }
+
+  .skips {
+    display: flex;
+    gap: 0.3rem;
+  }
+  .skip-token {
+    width: 28px; height: 28px;
+    border: 1px solid var(--gold);
+    background: linear-gradient(135deg, var(--bg-tile), var(--blood));
+    color: var(--gold-bright);
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(45deg);
+    transition: all 0.3s;
+  }
+  .skip-token span { transform: rotate(-45deg); }
+  .skip-token.used {
+    opacity: 0.2;
+    filter: grayscale(1);
+  }
+
+  .skip-btn {
+    background: linear-gradient(180deg, var(--blood), #3a0808);
+    border: 1px solid var(--ember);
+    color: var(--bone);
+    padding: 0.5rem 1.2rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .skip-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, var(--ember), var(--blood));
+    box-shadow: 0 0 12px var(--ember);
+  }
+  .skip-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* === QUESTION CARD === */
+  .question-stage {
+    width: 100%;
+    max-width: 1100px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .question-card {
+    background:
+      linear-gradient(180deg, rgba(42, 22, 12, 0.85), rgba(26, 14, 8, 0.95)),
+      radial-gradient(ellipse at top, rgba(200, 52, 26, 0.15), transparent 60%);
+    border: 1px solid var(--gold);
+    padding: 2.5rem 2rem;
+    position: relative;
+    box-shadow: 0 8px 40px var(--shadow), inset 0 1px 0 rgba(212, 165, 68, 0.2);
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Ornamental corners */
+  .question-card::before,
+  .question-card::after {
+    content: '';
+    position: absolute;
+    width: 24px; height: 24px;
+    border: 1px solid var(--gold);
+  }
+  .question-card::before {
+    top: -1px; left: -1px;
+    border-right: none; border-bottom: none;
+    box-shadow: -4px -4px 0 -3px var(--gold);
+  }
+  .question-card::after {
+    bottom: -1px; right: -1px;
+    border-left: none; border-top: none;
+    box-shadow: 4px 4px 0 -3px var(--gold);
+  }
+
+  .question-number {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-deep);
+    padding: 0 1rem;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.4em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .question-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    line-height: 1.4;
+    text-align: center;
+    color: var(--bone);
+    max-width: 900px;
+    font-weight: 500;
+  }
+
+  .question-text em, .question-text i {
+    color: var(--gold-bright);
+    font-style: italic;
+  }
+
+  .question-text strong {
+    color: var(--ember-bright);
+    font-weight: 700;
+  }
+
+  /* === ANSWER GRID === */
+  .answers-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .answer-tile {
+    background: linear-gradient(180deg, var(--bg-tile), var(--bg-mid));
+    border: 1px solid rgba(212, 165, 68, 0.4);
+    padding: 1.2rem 1.5rem;
+    cursor: pointer;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem;
+    color: var(--bone);
+    text-align: left;
+    transition: all 0.2s ease;
+    position: relative;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .answer-tile:hover {
+    background: linear-gradient(180deg, #3a1f10, var(--bg-tile));
+    border-color: var(--gold-bright);
+    box-shadow: 0 0 16px rgba(212, 165, 68, 0.3);
+    transform: translateX(4px);
+  }
+
+  .answer-tile .letter {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 1rem;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .answer-tile:hover .letter {
+    background: var(--gold);
+    color: var(--bg-deep);
+  }
+
+  .answer-tile.correct {
+    background: linear-gradient(180deg, #1a3a1a, #0a2a0a);
+    border-color: #5fd45f;
+    box-shadow: 0 0 24px rgba(95, 212, 95, 0.5);
+    animation: correctPulse 0.6s ease;
+  }
+
+  .answer-tile.wrong {
+    background: linear-gradient(180deg, var(--blood), #2a0606);
+    border-color: var(--ember);
+    box-shadow: 0 0 24px var(--ember);
+    animation: wrongShake 0.4s ease;
+  }
+
+  @keyframes correctPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  @keyframes wrongShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  /* Trick areas: hidden hotspots */
+  .hotspot {
+    position: absolute;
+    cursor: pointer;
+    z-index: 5;
+  }
+
+  /* Special question containers */
+  .special-question {
+    width: 100%;
+    min-height: 300px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Timer bar */
+  .timer-bar {
+    position: relative;
+    height: 6px;
+    background: var(--bg-tile);
+    border: 1px solid var(--gold);
+    overflow: hidden;
+    margin-top: 1rem;
+  }
+  .timer-fill {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--gold-bright), var(--ember-bright), var(--blood));
+    transform-origin: left;
+    transition: transform 0.1s linear;
+  }
+  .timer-bar.hidden { display: none; }
+
+  /* === FEEDBACK FLASH === */
+  .feedback-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+    transition: opacity 0.2s;
+  }
+  .feedback-flash.correct {
+    background: radial-gradient(ellipse at center, rgba(95, 212, 95, 0.3), transparent 60%);
+    opacity: 1;
+  }
+  .feedback-flash.wrong {
+    background: radial-gradient(ellipse at center, rgba(200, 52, 26, 0.4), transparent 60%);
+    opacity: 1;
+  }
+
+  /* === END SCREENS === */
+  .end-card {
+    background: linear-gradient(180deg, rgba(42, 22, 12, 0.95), rgba(10, 6, 4, 0.95));
+    border: 1px solid var(--gold);
+    padding: 3rem 4rem;
+    text-align: center;
+    max-width: 600px;
+    box-shadow: 0 12px 60px var(--shadow);
+    position: relative;
+  }
+
+  .end-card::before, .end-card::after {
+    content: '';
+    position: absolute;
+    width: 30px; height: 30px;
+    border: 2px solid var(--gold);
+  }
+  .end-card::before {
+    top: -2px; left: -2px;
+    border-right: none; border-bottom: none;
+  }
+  .end-card::after {
+    bottom: -2px; right: -2px;
+    border-left: none; border-top: none;
+  }
+
+  .end-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    line-height: 1;
+  }
+
+  .end-title.victory {
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px var(--gold));
+  }
+
+  .end-title.defeat {
+    color: var(--ember-bright);
+    filter: drop-shadow(0 0 20px var(--ember));
+  }
+
+  .end-subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 1.4rem;
+    color: var(--bone);
+    margin-bottom: 2rem;
+    opacity: 0.9;
+  }
+
+  .end-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border-top: 1px solid rgba(212, 165, 68, 0.3);
+    border-bottom: 1px solid rgba(212, 165, 68, 0.3);
+  }
+  .end-stat-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: 0.7;
+  }
+  .end-stat-value {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--bone);
+  }
+
+  /* === MISC === */
+  .pulse-warning {
+    animation: pulseWarn 0.5s ease infinite alternate;
+  }
+  @keyframes pulseWarn {
+    from { color: var(--ember-bright); }
+    to { color: var(--gold-bright); }
+  }
+
+  .countdown-timer {
+    font-family: 'VT323', monospace;
+    font-size: 2rem;
+    color: var(--ember-bright);
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  /* Sequence question */
+  .sequence-list {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 1.5rem 0;
+  }
+  .sequence-item {
+    background: var(--bg-tile);
+    border: 1px solid var(--gold);
+    padding: 0.6rem 1rem;
+    font-family: 'Cinzel', serif;
+    color: var(--gold-bright);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .sequence-item:hover { background: var(--blood); }
+  .sequence-item.picked { opacity: 0.3; pointer-events: none; }
+  .sequence-display {
+    font-family: 'VT323', monospace;
+    font-size: 1.6rem;
+    color: var(--bone);
+    text-align: center;
+    min-height: 2rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* Click counter */
+  .click-target {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    background: radial-gradient(circle, var(--blood) 30%, var(--bg-tile) 70%);
+    border: 2px solid var(--ember);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cinzel', serif;
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--gold-bright);
+    transition: all 0.1s;
+    user-select: none;
+  }
+  .click-target:active {
+    transform: scale(0.95);
+    background: radial-gradient(circle, var(--ember) 30%, var(--bg-tile) 70%);
+  }
+
+  /* Hidden text trick */
+  .hidden-correct {
+    color: transparent;
+    user-select: none;
+  }
+
+  .small-trick {
+    font-size: 0.6rem !important;
+    opacity: 0.5;
+  }
+
+  .moving-tile {
+    transition: all 0.3s ease;
+  }
+
+  .progress-marker {
+    font-family: 'VT323', monospace;
+    color: var(--gold);
+    font-size: 0.9rem;
+    letter-spacing: 0.2em;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- TITLE SCREEN -->
+  <div id="title-screen" class="screen active">
+    <div class="title-mark">
+      The Impossible
+      <span class="quiz-word">Dota Quiz</span>
+    </div>
+    <div class="title-flourish"></div>
+    <p class="title-tagline">
+      A trial of wits, lore, and lateral thinking.<br>
+      Three lives. Three skips. Twenty riddles. The Ancients are watching.
+    </p>
+    <button class="btn btn-large" id="start-btn">Begin the Trial</button>
+    <div class="title-hint">⚠ Read carefully. The obvious answer is rarely correct.</div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="screen">
+    <div class="hud">
+      <div class="hud-section">
+        <div>
+          <div class="hud-label">Lives</div>
+          <div class="lives" id="lives-display"></div>
+        </div>
+      </div>
+      <div class="hud-section">
+        <div style="text-align:center">
+          <div class="hud-label">Question</div>
+          <div class="hud-value"><span id="current-q">1</span> <span style="opacity:0.5">/</span> <span id="total-q">20</span></div>
+        </div>
+      </div>
+      <div class="hud-section">
+        <div style="text-align:right">
+          <div class="hud-label">Skips</div>
+          <div class="skips" id="skips-display"></div>
+        </div>
+        <button class="skip-btn" id="skip-btn">Skip</button>
+      </div>
+    </div>
+
+    <div class="question-stage" id="question-stage">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+
+  <!-- VICTORY SCREEN -->
+  <div id="victory-screen" class="screen">
+    <div class="end-card">
+      <h1 class="end-title victory">Ascendant</h1>
+      <p class="end-subtitle">"The Ancient acknowledges your wit."</p>
+      <div class="end-stats">
+        <div>
+          <div class="end-stat-label">Lives Left</div>
+          <div class="end-stat-value" id="v-lives">3</div>
+        </div>
+        <div>
+          <div class="end-stat-label">Skips Used</div>
+          <div class="end-stat-value" id="v-skips">0</div>
+        </div>
+      </div>
+      <button class="btn" onclick="resetGame()">Play Again</button>
+    </div>
+  </div>
+
+  <!-- DEFEAT SCREEN -->
+  <div id="defeat-screen" class="screen">
+    <div class="end-card">
+      <h1 class="end-title defeat">Defeated</h1>
+      <p class="end-subtitle" id="defeat-reason">"Your tower has fallen. Mortal."</p>
+      <div class="end-stats">
+        <div>
+          <div class="end-stat-label">Reached</div>
+          <div class="end-stat-value" id="d-reached">1</div>
+        </div>
+        <div>
+          <div class="end-stat-label">of</div>
+          <div class="end-stat-value" id="d-total">20</div>
+        </div>
+      </div>
+      <button class="btn" onclick="resetGame()">Try Again</button>
+    </div>
+  </div>
+
+  <div class="feedback-flash" id="flash"></div>
+</div>
+
+<script>
+/* ====================================================================
+   THE IMPOSSIBLE DOTA QUIZ
+   Inspired by The Impossible Quiz — every question has a twist.
+   ==================================================================== */
+
+const TOTAL_LIVES = 3;
+const TOTAL_SKIPS = 3;
+
+const state = {
+  current: 0,
+  lives: TOTAL_LIVES,
+  skipsLeft: TOTAL_SKIPS,
+  skipsUsed: 0,
+  locked: false
+};
+
+/* ----- EMBER PARTICLES ----- */
+function spawnEmbers(count = 20) {
+  for (let i = 0; i < count; i++) {
+    const e = document.createElement('div');
+    e.className = 'ember-particle';
+    e.style.left = Math.random() * 100 + 'vw';
+    e.style.animationDuration = (8 + Math.random() * 12) + 's';
+    e.style.animationDelay = (Math.random() * 10) + 's';
+    e.style.setProperty('--drift', (Math.random() * 200 - 100) + 'px');
+    document.body.appendChild(e);
+  }
+}
+spawnEmbers(25);
+
+/* ====================================================================
+   QUESTIONS — each is a function that builds the stage.
+   Each returns { mount, cleanup } or just calls helpers directly.
+   The trick spirit: misdirection, wordplay, "look closely", etc.
+   ==================================================================== */
+
+const questions = [];
+
+/* Helpers for building question UIs ---------------------------------- */
+
+function setStage(html) {
+  document.getElementById('question-stage').innerHTML = html;
+}
+
+function buildStandard({ qNum, prompt, answers, correctIndex, hintLetter = true }) {
+  const letters = ['A', 'B', 'C', 'D'];
+  const tiles = answers.map((a, i) => `
+    <button class="answer-tile" data-i="${i}">
+      ${hintLetter ? `<span class="letter">${letters[i]}</span>` : ''}
+      <span>${a}</span>
+    </button>
+  `).join('');
+
+  setStage(`
+    <div class="question-card">
+      <div class="question-number">— ${qNum} of 20 —</div>
+      <div class="question-text">${prompt}</div>
+    </div>
+    <div class="answers-grid">${tiles}</div>
+  `);
+
+  document.querySelectorAll('.answer-tile').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (state.locked) return;
+      const i = parseInt(btn.dataset.i);
+      if (i === correctIndex) {
+        markCorrect(btn);
+      } else {
+        markWrong(btn);
+      }
+    });
+  });
+}
+
+function markCorrect(el) {
+  state.locked = true;
+  if (el) el.classList.add('correct');
+  flash('correct');
+  setTimeout(() => nextQuestion(), 700);
+}
+
+function markWrong(el) {
+  state.locked = true;
+  if (el) el.classList.add('wrong');
+  flash('wrong');
+  loseLife();
+  setTimeout(() => {
+    state.locked = false;
+    if (state.lives > 0) {
+      // re-render same question
+      questions[state.current].build();
+    }
+  }, 800);
+}
+
+function flash(type) {
+  const f = document.getElementById('flash');
+  f.className = 'feedback-flash ' + type;
+  setTimeout(() => f.className = 'feedback-flash', 250);
+}
+
+function loseLife() {
+  state.lives--;
+  renderLives();
+  if (state.lives <= 0) {
+    setTimeout(() => endGame(false), 800);
+  }
+}
+
+/* ====================================================================
+   QUESTION BANK
+   ==================================================================== */
+
+// Q1 — Lateral. The "obvious" hero is wrong; trick is the question itself.
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 1,
+      prompt: 'How many heroes are in Dota 2?',
+      answers: [
+        'Exactly 124',
+        'Too many to remember',
+        'One — the Ancient',
+        'Counting is for Pos 5s'
+      ],
+      correctIndex: 1
+    });
+  }
+});
+
+// Q2 — Hidden answer in the question. The em tags spell it out.
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 2,
+      prompt: '<em>P</em>ick a he<em>r</em>o known fo<em>r</em> bein<em>g</em> tan<em>k</em>y. Choose wisely.',
+      answers: [
+        'Pudge',
+        'Axe',
+        'Tidehunter',
+        'Read the question again'
+      ],
+      correctIndex: 3
+    });
+  }
+});
+
+// Q3 — Wordplay
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 3,
+      prompt: 'What does <strong>GG</strong> stand for at minute 8?',
+      answers: [
+        'Good Game',
+        'Get Gud',
+        'Grovel and Grudge',
+        'Going Glyph'
+      ],
+      correctIndex: 1
+    });
+  }
+});
+
+// Q4 — Click the question for the answer (literal interpretation)
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 4,
+      prompt: 'Which side wins more games statistically?',
+      answers: [
+        'Radiant',
+        'Dire',
+        'Neither — perfectly balanced',
+        'Whichever team has the better Pos 1'
+      ],
+      correctIndex: 0  // Radiant historically wins slightly more — but it's a real fact wrapped as a trick
+    });
+  }
+});
+
+// Q5 — Counting with deception
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 5,
+      prompt: 'How many letters in <em>"Anti-Mage"</em>?',
+      answers: [
+        '8',
+        '9',
+        '7 — the dash doesn\'t count',
+        'There is no I in Anti-Mage'
+      ],
+      correctIndex: 0  // A-n-t-i-M-a-g-e = 8 letters (excluding hyphen)
+    });
+  }
+});
+
+// Q6 — Time pressure click
+questions.push({
+  cleanup: null,
+  build() {
+    setStage(`
+      <div class="question-card">
+        <div class="question-number">— 6 of 20 —</div>
+        <div class="question-text">Quick! Glyph the tower before the creep wave!<br><span style="font-size:0.9rem;opacity:0.7;font-style:italic">Click the glyph 7 times.</span></div>
+      </div>
+      <div class="special-question">
+        <div style="text-align:center">
+          <div class="click-target" id="click-target">0</div>
+          <div class="countdown-timer" id="cd-timer">5.0s</div>
+        </div>
+      </div>
+      <div class="timer-bar"><div class="timer-fill" id="tfill"></div></div>
+    `);
+
+    let clicks = 0;
+    let timeLeft = 5.0;
+    const target = document.getElementById('click-target');
+    const cd = document.getElementById('cd-timer');
+    const fill = document.getElementById('tfill');
+
+    target.onclick = () => {
+      if (state.locked) return;
+      clicks++;
+      target.textContent = clicks;
+      if (clicks >= 7) {
+        clearInterval(this.cleanup);
+        markCorrect(null);
+      }
+    };
+
+    this.cleanup = setInterval(() => {
+      timeLeft -= 0.1;
+      cd.textContent = timeLeft.toFixed(1) + 's';
+      fill.style.transform = `scaleX(${timeLeft / 5})`;
+      if (timeLeft <= 0) {
+        clearInterval(this.cleanup);
+        if (!state.locked) markWrong(null);
+      }
+    }, 100);
+  }
+});
+
+// Q7 — Hidden in plain sight
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 7,
+      prompt: 'Which hero said <em>"You don\'t even know my name"</em>?',
+      answers: [
+        'Riki',
+        'Invoker',
+        'Meepo',
+        'Templar Assassin'
+      ],
+      correctIndex: 0
+    });
+  }
+});
+
+// Q8 — Math trick — Roshan timer
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 8,
+      prompt: 'Roshan died at 14:30. He could be back as early as...',
+      answers: [
+        '22:30',
+        '24:30',
+        '23:30',
+        'Whenever the enemy says he\'s up'
+      ],
+      correctIndex: 0  // 8 minute minimum respawn
+    });
+  }
+});
+
+// Q9 — Trick: only one hero is technically a "fish"
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 9,
+      prompt: 'Which of these is technically a fish?',
+      answers: [
+        'Slardar',
+        'Slark',
+        'Tidehunter',
+        'None — they\'re all <em>nagas</em>, <em>slithereens</em>, and <em>kuo-toa</em>'
+      ],
+      correctIndex: 3
+    });
+  }
+});
+
+// Q10 — Sequence puzzle — Invoker combo
+questions.push({
+  build() {
+    setStage(`
+      <div class="question-card">
+        <div class="question-number">— 10 of 20 —</div>
+        <div class="question-text">Cast <em>Sun Strike</em>. Click the orbs in the correct order.<br><span style="font-size:0.9rem;opacity:0.7">(Hint: it's the only spell with all three of one orb.)</span></div>
+      </div>
+      <div class="special-question">
+        <div style="text-align:center;width:100%">
+          <div class="sequence-display" id="seq-display">_  _  _</div>
+          <div class="sequence-list" id="seq-list">
+            <button class="sequence-item" data-orb="Q">Q · Quas</button>
+            <button class="sequence-item" data-orb="W">W · Wex</button>
+            <button class="sequence-item" data-orb="E">E · Exort</button>
+            <button class="sequence-item" data-orb="Q2">Q · Quas</button>
+            <button class="sequence-item" data-orb="W2">W · Wex</button>
+            <button class="sequence-item" data-orb="E2">E · Exort</button>
+            <button class="sequence-item" data-orb="Q3">Q · Quas</button>
+            <button class="sequence-item" data-orb="W3">W · Wex</button>
+            <button class="sequence-item" data-orb="E3">E · Exort</button>
+          </div>
+        </div>
+      </div>
+    `);
+
+    const sequence = [];
+    const correct = ['E', 'E', 'E']; // Sun Strike = Exort x3
+
+    document.querySelectorAll('.sequence-item').forEach(btn => {
+      btn.onclick = () => {
+        if (state.locked) return;
+        const orb = btn.dataset.orb[0]; // first char only
+        sequence.push(orb);
+        btn.classList.add('picked');
+        document.getElementById('seq-display').textContent = sequence.join('  ');
+
+        if (sequence.length === 3) {
+          if (sequence.join('') === correct.join('')) {
+            markCorrect(null);
+          } else {
+            markWrong(null);
+          }
+        }
+      };
+    });
+  }
+});
+
+// Q11 — Visual trick: small text
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 11,
+      prompt: 'Pick the <span class="small-trick">smallest</span> hero.',
+      answers: [
+        'Meepo',
+        'Crystal Maiden',
+        'Tinker',
+        '<span class="small-trick">Snapfire</span>'
+      ],
+      correctIndex: 3
+    });
+  }
+});
+
+// Q12 — Drow Ranger — answer is the one she can't do
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 12,
+      prompt: 'Drow Ranger\'s passive deactivates when an enemy is...',
+      answers: [
+        '400 range or closer',
+        '500 range or closer',
+        '300 range or closer',
+        'Right behind her, breathing on her neck'
+      ],
+      correctIndex: 0
+    });
+  }
+});
+
+// Q13 — Click the right thing — the period.
+questions.push({
+  build() {
+    setStage(`
+      <div class="question-card">
+        <div class="question-number">— 13 of 20 —</div>
+        <div class="question-text">Where is <em>The Ancient</em>?</div>
+      </div>
+      <div class="answers-grid">
+        <button class="answer-tile" data-i="0"><span class="letter">A</span><span>Top of the map</span></button>
+        <button class="answer-tile" data-i="1"><span class="letter">B</span><span>Bottom of the map</span></button>
+        <button class="answer-tile" data-i="2"><span class="letter">C</span><span>In your base.</span></button>
+        <button class="answer-tile" data-i="3"><span class="letter">D</span><span>Behind you</span></button>
+      </div>
+      <div style="text-align:center;font-family:'VT323',monospace;color:var(--gold);opacity:0.6;font-size:0.85rem;margin-top:0.5rem">
+        Click <em>precisely</em>.
+      </div>
+    `);
+
+    // Trick: you must click the period in answer C
+    document.querySelectorAll('.answer-tile').forEach(btn => {
+      btn.onclick = (e) => {
+        if (state.locked) return;
+        const i = parseInt(btn.dataset.i);
+        // Default: wrong
+        markWrong(btn);
+      };
+    });
+
+    // The "period" in answer C is the actual hotspot
+    const cTile = document.querySelector('[data-i="2"]');
+    const text = cTile.querySelector('span:last-child');
+    text.innerHTML = 'In your base<span style="cursor:pointer;color:var(--gold-bright);font-weight:900" id="the-period">.</span>';
+    document.getElementById('the-period').onclick = (e) => {
+      e.stopPropagation();
+      if (state.locked) return;
+      markCorrect(null);
+    };
+  }
+});
+
+// Q14 — The "rules of the game" question
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 14,
+      prompt: 'How do you win a Dota 2 match?',
+      answers: [
+        'Destroy the enemy Ancient',
+        'Get the most kills',
+        'Have your team not flame each other',
+        'Outlast the enemy mid laner\'s patience'
+      ],
+      correctIndex: 0
+    });
+  }
+});
+
+// Q15 — All answers technically correct, pick the most "lore" one
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 15,
+      prompt: 'Who is <em>Davion</em>?',
+      answers: [
+        'A Dragon Knight',
+        'The protagonist of <em>DOTA: Dragon\'s Blood</em>',
+        'Both of the above',
+        'Never heard of him'
+      ],
+      correctIndex: 2
+    });
+  }
+});
+
+// Q16 — Memory: count the 'O's
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 16,
+      prompt: 'How many letter "<strong>O</strong>"s appear in <em>"Outworld Destroyer"</em>?',
+      answers: [
+        '2',
+        '3',
+        '4',
+        '1 — case-sensitive'
+      ],
+      correctIndex: 2  // Outwo-rld De-st-ro-yer = O,o,o,o = 4
+    });
+  }
+});
+
+// Q17 — Skip-trap question (almost impossible without skip — but has a clever answer)
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 17,
+      prompt: 'How many syllables are in <em>"Nyx Assassin Vendetta"</em>?',
+      answers: [
+        '7',
+        '8',
+        '9',
+        'Use a skip, mortal.'
+      ],
+      correctIndex: 1  // Nyx (1) As-sas-sin (3) Ven-det-ta (3) = 7... or 8 depending — the trick is most ppl undercount
+    });
+  }
+});
+
+// Q18 — Classic Impossible Quiz "click the dot" style
+questions.push({
+  build() {
+    setStage(`
+      <div class="question-card">
+        <div class="question-number">— 18 of 20 —</div>
+        <div class="question-text">
+          The Roshan pit has <em>3</em> entrances.<br>
+          But how many <strong>exits</strong>?
+        </div>
+      </div>
+      <div class="answers-grid">
+        <button class="answer-tile" data-i="0"><span class="letter">A</span><span>3 — same as entrances</span></button>
+        <button class="answer-tile" data-i="1"><span class="letter">B</span><span>2 — north blocked</span></button>
+        <button class="answer-tile" data-i="2"><span class="letter">C</span><span>1 — only the safe lane side</span></button>
+        <button class="answer-tile" data-i="3"><span class="letter">D</span><span>None — you\'re already dead</span></button>
+      </div>
+    `);
+
+    document.querySelectorAll('.answer-tile').forEach(btn => {
+      btn.onclick = () => {
+        if (state.locked) return;
+        const i = parseInt(btn.dataset.i);
+        if (i === 0) markCorrect(btn); // Same as entrances — pit is symmetric
+        else markWrong(btn);
+      };
+    });
+  }
+});
+
+// Q19 — The "hidden" tile that moves
+questions.push({
+  build() {
+    setStage(`
+      <div class="question-card">
+        <div class="question-number">— 19 of 20 —</div>
+        <div class="question-text">Catch the <em>Roshan</em>. He\'s slippery.</div>
+      </div>
+      <div class="answers-grid" id="rosh-grid">
+        <button class="answer-tile" data-i="0"><span class="letter">A</span><span>Click here</span></button>
+        <button class="answer-tile moving-tile" data-i="1" id="rosh-tile"><span class="letter">B</span><span>🛡️ Roshan</span></button>
+        <button class="answer-tile" data-i="2"><span class="letter">C</span><span>No, click here</span></button>
+        <button class="answer-tile" data-i="3"><span class="letter">D</span><span>Definitely here</span></button>
+      </div>
+    `);
+
+    const rosh = document.getElementById('rosh-tile');
+    let caught = false;
+
+    rosh.addEventListener('mouseenter', () => {
+      if (state.locked || caught) return;
+      // Swap with another random tile
+      const tiles = Array.from(document.querySelectorAll('#rosh-grid .answer-tile'));
+      const others = tiles.filter(t => t !== rosh);
+      const swap = others[Math.floor(Math.random() * others.length)];
+      // Swap content
+      const tmpHTML = rosh.innerHTML;
+      rosh.innerHTML = swap.innerHTML;
+      swap.innerHTML = tmpHTML;
+      swap.id = 'rosh-tile';
+      rosh.id = 'old-rosh';
+      // Re-attach listener
+      const newRosh = document.getElementById('rosh-tile');
+      newRosh.classList.add('moving-tile');
+      newRosh.addEventListener('mouseenter', arguments.callee);
+      newRosh.addEventListener('click', () => {
+        if (caught) return;
+        caught = true;
+        markCorrect(newRosh);
+      });
+    });
+
+    rosh.addEventListener('click', () => {
+      if (caught) return;
+      caught = true;
+      markCorrect(rosh);
+    });
+
+    document.querySelectorAll('#rosh-grid .answer-tile').forEach(btn => {
+      if (btn.id !== 'rosh-tile') {
+        btn.addEventListener('click', () => {
+          if (state.locked || caught) return;
+          markWrong(btn);
+        });
+      }
+    });
+  }
+});
+
+// Q20 — Final boss question
+questions.push({
+  build() {
+    buildStandard({
+      qNum: 20,
+      prompt: 'You have reached the final question.<br><em>What is the answer?</em>',
+      answers: [
+        'A',
+        'B',
+        'C',
+        'The journey, not the destination.'
+      ],
+      correctIndex: 3
+    });
+  }
+});
+
+/* ====================================================================
+   GAME FLOW
+   ==================================================================== */
+
+function renderLives() {
+  const el = document.getElementById('lives-display');
+  let html = '';
+  for (let i = 0; i < TOTAL_LIVES; i++) {
+    html += `<span class="heart ${i >= state.lives ? 'lost' : ''}">♥</span>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderSkips() {
+  const el = document.getElementById('skips-display');
+  let html = '';
+  for (let i = 0; i < TOTAL_SKIPS; i++) {
+    html += `<div class="skip-token ${i >= state.skipsLeft ? 'used' : ''}"><span>S</span></div>`;
+  }
+  el.innerHTML = html;
+  document.getElementById('skip-btn').disabled = state.skipsLeft <= 0 || state.locked;
+}
+
+function renderQuestion() {
+  state.locked = false;
+  document.getElementById('current-q').textContent = state.current + 1;
+  document.getElementById('total-q').textContent = questions.length;
+  questions[state.current].build();
+  renderLives();
+  renderSkips();
+}
+
+function nextQuestion() {
+  state.current++;
+  if (state.current >= questions.length) {
+    endGame(true);
+  } else {
+    renderQuestion();
+  }
+}
+
+function useSkip() {
+  if (state.skipsLeft <= 0 || state.locked) return;
+  state.skipsLeft--;
+  state.skipsUsed++;
+  renderSkips();
+  state.locked = true;
+  flash('correct');
+  setTimeout(() => nextQuestion(), 400);
+}
+
+function endGame(victory) {
+  showScreen(victory ? 'victory-screen' : 'defeat-screen');
+  if (victory) {
+    document.getElementById('v-lives').textContent = state.lives;
+    document.getElementById('v-skips').textContent = state.skipsUsed;
+  } else {
+    document.getElementById('d-reached').textContent = state.current + 1;
+    document.getElementById('d-total').textContent = questions.length;
+    const reasons = [
+      '"Your tower has fallen. Mortal."',
+      '"GG. Better luck next time."',
+      '"The Ancient is unimpressed."',
+      '"You should have used a skip."',
+      '"Reported."'
+    ];
+    document.getElementById('defeat-reason').textContent =
+      reasons[Math.floor(Math.random() * reasons.length)];
+  }
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+  state.current = 0;
+  state.lives = TOTAL_LIVES;
+  state.skipsLeft = TOTAL_SKIPS;
+  state.skipsUsed = 0;
+  state.locked = false;
+  showScreen('game-screen');
+  renderQuestion();
+}
+
+function resetGame() {
+  showScreen('title-screen');
+}
+
+/* ----- Wire up ----- */
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('skip-btn').addEventListener('click', useSkip);
+
+</script>
+</body>
+</html>
